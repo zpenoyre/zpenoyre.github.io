@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>astroTree</title>
+        <style>
+
+          .link {
+            stroke: #bbb;
+          }
+          .node circle{
+              pointer-events: all;
+              fill: cornflowerblue;
+              stroke-width: 0px;
+            }
+          .node circle.norm {
+            stroke: lightcyan;
+            r: 40px;
+          }
+          .node circle.main {
+            stroke: cornflowerblue;
+            r: 100px;
+          }
+          .node circle.mouse {
+            stroke: midnightblue;
+            r: 70px;
+          }
+          .node text {
+            pointer-events: all;
+            font: 10px sans-serif;
+            text-anchor: middle;
+            fill: white;
+          }
+          *
+          {
+            margin:0;
+            padding:0;
+          }
+          div
+          {
+            min-height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-direction:column;
+            font-family: Futura, "Trebuchet MS", Arial, sans-serif;
+            font-weight: bold;
+            color: black;
+          }
+          h1
+          {
+            font-size: 28px;
+          }
+          h2
+          {
+            font-size: 14px;
+          }
+          p
+          {
+            font-size: 10px;
+          }
+          
+        </style>
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+    </head>
+    <body>
+        <script type="text/javascript">
+          var w=800;
+          var h=600;
+          
+          var svg=d3.select("body").append("svg");
+          
+          svg.attr('width',w)
+            .attr('height',h);
+            
+          // ensures branches sit beneath leaves  
+          svg.append("g").attr("id", "branches")
+          svg.append("g").attr("id", "leaves")
+        
+          function new_node(leaf,whichLeaf){
+            this.text=leaf.name;
+            this.id=leaf.id; //universal id of node
+            this.dist=leaf.dist;
+            this.blurb=leaf.blurb;
+            this.whichLeaf=whichLeaf; //position of leaf in list "leafs"
+            this.type=3; //whether node is root(0), trunk(1), bough(2) or sprig(3)
+            this.x=(0.5+Math.atan(leaf.dist-mainDist)/Math.PI)*w;
+            this.y=0.5*h;
+          }
+          function new_link(source,target){
+            this.source=source;
+            //this.source.x=0.5*w;
+            //this.source.y=0.5*h;
+            this.target=target;
+          }
+          
+          // gets data, reads to "leafs", starts first tree, records max distant from heart
+          var leafs;
+          d3.json("./AstroTreeData.json",function(error,data){
+            if (error) throw error;
+            leafs=data.leafs;
+            initTree(0);
+          })
+          
+          //list of modes and links
+          var nodes=[];
+          var links=[];
+          
+          //svg elements representing nodes and links
+          var link;
+          var node;
+          
+          //svg circles representing the nodes
+          var circles;
+          //svg text on nodes
+          var textW=150;
+          var textH=200;
+          var text;
+          
+          //the force directed force simulation
+          var maxDist=2;
+          var pad=10;
+          var simulation;
+          setupSim();
+          
+          //starts a new simulation centred on whichLeaf
+          function initTree(whichLeaf){
+            nodes=[];
+            links=[];
+            var thisLeaf = leafs[whichLeaf];
+            mainDist=thisLeaf.dist;
+            thisLeaf.x=0.5*w;
+            
+            var newNode = new new_node(thisLeaf,0);
+            nodes.push(newNode);
+            nodes[0].type=0 //root of tree
+            nodes[0].text=writeHtml(2,thisLeaf);
+            
+            for (var i=0;i<thisLeaf.branch.length;i++){
+              var nextLeaf=thisLeaf.branch[i];
+              addLeaf(whichLeaf,nextLeaf);
+              nodes[nodes.length-1].type=2; //bough of tree
+            }
+          }
+          
+          //re-centers the simulation around the clicked leaf (whichLeaf)
+          function rootTree(whichLeaf){
+            whichNode=findLeaf(whichLeaf);
+            // finds which node was root and where it is in the nodes list
+            rootNode=findRoot();
+            rootLeaf=nodes[rootNode].whichLeaf;
+            
+            nodes[rootNode].text=writeHtml(0,leafs[rootLeaf]); //changes old roots text to just title
+            nodes[whichNode].text=writeHtml(2,leafs[whichLeaf]); //fills in text for new root
+            
+            d3.select('#circle'+nodes[rootNode].id).transition()
+              .attr('class','norm');
+            d3.select('#circle'+nodes[whichNode].id).transition()
+              .attr('class','main');
+            d3.select('#text'+nodes[rootNode].id)
+              .html(function(d) { return d.text; });
+            d3.select('#text'+nodes[whichNode].id)
+              .html(function(d) { return d.text; });
+            
+            var oldBranches=leafs[rootLeaf].branch;
+            // turns all leaves from old root into sprigs (for stripping)
+            for(var i=0;i<oldBranches.length;i++){
+              var oldNode=findLeaf(oldBranches[i]);
+              nodes[oldNode].type=3;
+            }
+            //turns all leaves connected to new root into boughs
+            var newBranches=leafs[whichLeaf].branch;
+            for(var i=0;i<newBranches.length;i++){
+              var newNode=findLeaf(newBranches[i]);
+              nodes[newNode].type=2;
+            }
+            nodes[whichNode].type=0; // assigns new root
+            // strips all branches and dead leaves
+            for(var i=0;i<oldBranches.length;i++){
+              stripLeaf(rootLeaf,oldBranches[i])
+            }
+            // CURRENTLY SEEMS TO STRIP WRONG BRANCH (wrong entry taken out of node? maybe need a merger in stripLeaf?)
+          }
+          
+          //add new leaf, draw it and add it to simulation
+          function addLeaf(rootLeaf,newLeaf){
+            simulation.stop();
+            // checks if leaf already exists, if not adds new node
+            if(findLeaf(newLeaf)==-1){
+              var newNode = new new_node(leafs[newLeaf],newLeaf);
+              nodes.push(newNode);
+              nodes[nodes.length-1].text = writeHtml(0,leafs[newLeaf]);
+            }
+            // regardless adds link between current node and new one
+            var newLink = new new_link(rootLeaf,newLeaf);
+            links.push(newLink);
+            
+            updateLeaves();
+          }
+          
+          //removes a leaf from the simulation
+          function stripLeaf(rootLeaf,deadLeaf){
+            simulation.stop();
+            var rootNode=findLeaf(rootLeaf);
+            var deadNode=findLeaf(deadLeaf);
+            var deadBranch=findBranch(rootLeaf,deadLeaf);
+            // if leaf is a sprig strip it, strip all branches
+            if (nodes[deadNode].type==3){ nodes.splice(deadNode,1); }
+            links.splice(deadBranch,1);
+            
+            updateLeaves();
+          }
+          
+          //adds or removes leaves and branches
+          function updateLeaves(){
+            //adds newest branch and draws it
+            link = svg.select("#branches").selectAll(".link")
+              .data(links, function(d) { return d.target.id; });
+            link.exit().remove();
+            var linkEnter = link  
+              .enter().append("line")
+              .attr("class","link");
+            link = linkEnter.merge(link);
+            
+            //adds newest leaf  
+            node = svg.select("#leaves").selectAll(".node")
+              .data(nodes, function(d) { return d.id; });
+            node.exit().remove();
+            var nodeEnter = node
+              .enter().append("g")
+              .attr("class","node");
+              
+            nodeEnter.append('circle')
+              .attr('id',function(d) { return "circle" + d.id; })
+              .attr('class',function(d){
+                  if (d.type==0){ return 'main'}
+                  else {return 'norm'};
+              });
+            nodeEnter.append('foreignObject')
+              .attr("width", textW)
+              .attr("height",textH)
+              .attr("x",-0.5*textW)
+              .attr("y",-0.5*textH)
+              .append("xhtml:div")
+                .attr("id", function(d) { return "text" + d.id; })
+                .html(function(d) { return d.text; });
+                
+            node = nodeEnter.merge(node);
+            
+            simulation.nodes(nodes);  
+            simulation.force("link")
+              .links(links);
+            simulation.alpha(1);  
+            restartSim();
+          }
+          
+          //sets up the simulation
+          function setupSim(){
+            simulation = d3.forceSimulation()
+              .alphaDecay(0.01)
+              .force("link", 
+                d3.forceLink()
+                  .distance(160)
+                  .id(function(d) { return d.id; })
+                  .strength(0.1))
+              .force("charge", 
+                d3.forceManyBody()
+                  .strength(-50))
+              //.force("center",
+              //  d3.forceCenter(w/2,h/2))
+              // want this to be circle radius, even on mouseover. Isn't... 
+              //.force("collision", d3.forceCollide(function(d) { return '60px'; }))
+              .force("xPos", 
+                d3.forceX(function(d,i){ return w*(1+leafs[d.whichLeaf].dist)/(2+maxDist)})
+                  .strength(0.01))
+              .force("yPos", 
+                d3.forceY(h/2)
+                  .strength(function(d,i){
+                    if(d.type==0) {return 0.05;}
+                    else {return 0;}
+                  }))
+              .on('tick',ticked);
+            simulation.stop();
+          }
+          
+          //starts up the simulation and sets up the way the leaves react to interaction
+          function restartSim(){
+            simulation.restart();
+            circles = d3.selectAll('circle');
+            circles.on('mouseover',function(d){
+              if (d.type==0) { return 0; }
+              d3.select('#circle'+d.id).transition()
+                .attr('class','mouse');
+              d.text=writeHtml(1,leafs[d.whichLeaf]);
+              d3.select('#text'+d.id)
+                .html(function(d,i) { return d.text; });
+              var currentLeaf=leafs[d.whichLeaf];
+              d.type=1; // node of interest becomes trunk
+              for (var i=0;i<currentLeaf.branch.length;i++){
+                var nextLeaf=currentLeaf.branch[i];
+                addLeaf(d.whichLeaf,nextLeaf);
+              }
+            })
+            .on('mouseout', function(d){
+              if (d.type==0) { return 0; }
+              d3.select('#circle'+d.id).transition()
+                .attr('class','norm');
+              d.text=writeHtml(0,leafs[d.whichLeaf]);
+              d3.select('#text'+d.id)
+                .html(function(d,i) { return d.text; });
+              var currentLeaf=leafs[d.whichLeaf]
+              d.type=2; // reverts to being just another bough
+              for (var i=0;i<currentLeaf.branch.length;i++){
+                var nextLeaf=currentLeaf.branch[i];
+                stripLeaf(d.whichLeaf,nextLeaf);
+              }
+            })
+            .on('click', function(d,i){
+              rootTree(d.id);
+            });
+          }
+          
+          //finds where a particular leaf sits in the array of nodes, -1 if it doesn't
+          function findLeaf(whichLeaf){
+            for (var i=0;i<nodes.length;i++){
+              if (nodes[i].whichLeaf==whichLeaf){ return i; };
+            }
+            return -1;
+          }
+          
+          //finds where a particular branch sits in the array of links, -1 if it doesn't
+          function findBranch(sourceLeaf,targetLeaf){
+            for (var i=0;i<links.length;i++){
+              if (links[i].source.id==sourceLeaf && links[i].target.id==targetLeaf){ return i; }
+            }
+            return -1;
+          }
+          
+          //finds which node is the current root
+          function findRoot(){
+            for (var i=0;i<nodes.length;i++){
+              if (nodes[i].type==0) { return i; }
+            }
+          }
+          
+          //finds the nodes which are currently boughs
+          function findBoughs(){
+            var boughs=[]
+            for (var i=0;i<nodes.length;i++){
+              if (nodes[i].type==2) { boughs.push(i); }
+            }
+            return boughs;
+          }
+          
+          //writes the html for each leaf
+          function writeHtml(whichType,leaf){
+            // Title
+            var html='<div> <h1>'+leaf.name+'</h1> \n';
+            // Description
+            if (whichType > 0){
+              html+='<h2>'+leaf.blurb+'</h2> \n';
+            }
+            // Links etc
+            if (whichType == 2){
+              html+="<p>*Here we'd have links to recent articles, maybe a summary article, maybe even a link to wikipedia?*</p>"
+            }
+            html+='</div>';
+            return html;
+          }
+          
+          //advances the simulation
+          function ticked() {
+            link
+              .attr("x1", function(d) { return d.source.x; })
+              .attr("y1", function(d) { return d.source.y; })
+              .attr("x2", function(d) { return d.target.x; })
+              .attr("y2", function(d) { return d.target.y; });
+            
+            node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+          }
+          
+          //swaps two elements in an array (not currently used)
+          Array.prototype.swap = function (i,j) {
+            var temp = this[i];
+            this[i] = this[j];
+            this[j] = temp;
+            return this;
+          }
+          
+        </script>
+        <div> astroTree </div>
+    </body>
+</html>    
