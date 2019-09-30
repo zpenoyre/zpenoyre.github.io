@@ -1,0 +1,14 @@
+{
+  "leafs": [
+    {"id":0,"name":"Galaxies","branch":[1,2,6],"dist":0,"blurb":"Galaxies are huge collections of stars, dark matter and gas held together by gravity"},
+    {"id":1,"name":"Galaxy Types","branch":[0,3,5,8],"dist":1,"blurb":"There are three main types of galaxies: elliptical, spiral and dwarf"},
+    {"id":2,"name":"Growth","branch":[0,4,9],"dist":1,"blurb":"Galaxies grow larger through accretion of gas and mergers with other galaxies"},
+    {"id":3,"name":"Spiral galaxies","branch":[1,9],"dist":2,"blurb":"Spirals are massive, disk shaped galaxies. They are actively forming new stars. Our galaxy, the Milky Way, is a spiral."},
+    {"id":4,"name":"Mergers","branch":[2,5],"dist":2,"blurb":"Galaxies collide often compared to the lifetime of the universe. When they do they tear each other apart in a violent merger."},
+    {"id":5,"name":"Elliptical galaxies","branch":[1,4],"dist":2,"blurb":"Ellipticals are the most massive form of galaxy. They are huge spheres of stars in random orbits with no gas or star formation."},
+    {"id":6,"name":"Black Holes","branch":[0,7],"dist":1,"blurb":"Black holes are extremely massive objects, whose gravity is so strong that they collapse down to a tiny size."},
+    {"id":7,"name":"Black Hole Mergers","branch":[6],"dist":2,"blurb":"When two black holes merge they distort the space-time around them"},
+    {"id":8,"name":"Dwarf galaxies","branch":[1],"dist":2,"blurb":"Dwarves are the least massive galaxies."},
+    {"id":9,"name":"Gas accretion","branch":[2,3],"dist":2,"blurb":"Galaxies pull gas towards them from their surroundings, feeding new star formation."}
+  ]
+}

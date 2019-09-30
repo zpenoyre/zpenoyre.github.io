@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>caustics</title>
+  <style>
+  div.container {
+    display: flex;   /* Magic begins */
+    flex-direction: row;
+    width: 100vw;
+    height: 50vw;
+  }
+  div.sim {
+    flex-grow: 1;
+    width: 50%;
+  }
+  div
+  .link {
+    stroke: #bbb;
+  }
+  .node circle {
+    stroke-width: 0px;
+    r: 2px
+  }
+  *
+  {
+    margin:0;
+    padding:0;
+  }
+  div.text
+  {
+    flex-grow: 1;
+    width: 50%;
+    padding-left: 5%;
+    padding-right: 1%;
+    align-self: flex-end;
+    text-align: right;
+    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
+    font-weight: bold;
+    color: black;
+  }
+  h1
+  {
+    margin: 3%;
+    font-size: 32px;
+  }
+  h2
+  {
+    margin: 3%;
+    font-size: 14px;
+  }
+  p
+  {
+    margin: 3%;
+    font-size: 16px;
+  }
+
+  </style>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-color.v0.5.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v0.9.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v0.3.min.js"></script>
+</head>
+<body>
+  <div  class="container">
+    <div class="sim" id="sim"> </div>
+    <div class="text">
+      <h1> Dynamic Reaction to Rapid Mass Loss </h1>
+      <p> An illustration of the effects discussed in <a href="https://arxiv.org/abs/1709.08640">Penoyre and Haiman 2017</a> </p>
+      <p> Each particle is initially on a circular orbit, coloured by their distance from the central mass. The background colour shows the density of particles in each shell.</p>
+      <p> Click on the central body to drop its mass by 20 percent. </p>
+      <p> Watch as particles now travel on elliptical orbits, never going closer than their initial radius. </p>
+      <p> At first they all move outwards and the density drops, but as they start to return, high density regions, where the orbit of many particles cross, develop and move outwards. </p>
+      <p> You can drop the mass further by clicking more. The whole thing can be paused by pressing "space". Reload the page to restart the simulation. </p>
+      <p> Click <a href="index.html">here</a> to return to my homepage. </p>
+    </div>
+  </div>
+  <script type="text/javascript">
+  var w=0.5*window.innerWidth || document.body.clientWidth;
+  var h=w
+  console.log(h,w)
+
+  var svg=d3.select("#sim").append("svg");
+  console.log(svg)
+
+  svg.attr('width',w)
+  .attr('height',h);
+
+  var G=4.96e-15;
+  var M=1e9;
+  var x0=(1/4)*w;
+  var y0=(3/4)*h;
+  var dx = x0<w/2 ? w-x0:x0
+  var dy = y0<h/2 ? h-y0:y0
+  var rMax=Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2))
+
+  pColour=d3.scaleOrdinal(d3.schemeCategory20c); // not used?
+  cBoost=50;
+
+  function newParticle(x,y,id){
+    this.id=id
+    this.x=x;
+    this.y=y;
+    this.r=Math.sqrt(Math.pow(x-x0,2)+Math.pow(y-y0,2));
+    this.vx=Math.sqrt(G*M/Math.pow(this.r,3))*(y-y0);
+    this.vy=-Math.sqrt(G*M/Math.pow(this.r,3))*(x-x0);
+    this.c=d3.interpolateGnBu(this.r/rMax);
+    this.step = function(dt){
+      this.x=this.x+dt*this.vx;
+      this.y=this.y+dt*this.vy;
+      this.r=Math.sqrt(Math.pow(this.x-x0,2)+Math.pow(this.y-y0,2));
+      this.vx=this.vx-dt*(G*M/Math.pow(this.r,3))*(this.x-x0);
+      this.vy=this.vy-dt*(G*M/Math.pow(this.r,3))*(this.y-y0);
+    };
+  };
+  function newRing(id,r1,r2,x,y){
+    this.id=id
+    this.r1=r1
+    this.r2=r2
+    this.x=x
+    this.y=y
+    this.n=0
+    this.c=d3.interpolateBlues(1-(cBoost*nParticles/(Math.PI*(Math.pow(rMax,2)-Math.pow(rMin,2)))))
+  }
+
+
+  var particles=[];
+  function makeParticle(id){
+    var P=Math.random();
+    var r=rMin+rMax*Math.sqrt(P);
+    var phi=2*Math.PI*Math.random();
+    var x=x0+r*Math.cos(phi);
+    var y=y0+r*Math.sin(phi);
+    var newPart= new newParticle(x,y,id);
+    particles.push(newPart);
+  }
+  var rMin=200
+  var nParticles=2**13
+  for(var i=0;i<nParticles;i++){
+    makeParticle(i);
+  };
+
+  function makeRing(i){
+    r1=rMin+((i-1)/nRings)*(rMax-rMin);
+    r2=rMin+((i)/nRings)*(rMax-rMin);
+    var newT=new newRing(i,r1,r2,x0,y0);
+    rings.push(newT);
+  }
+  var rings=[]
+  var nRings=64
+  var r1,r2
+  for(var i=nRings;i>0;i--){
+    makeRing(i)
+  }
+  //var simulation = d3.forceSimulation()
+  //	.alphaDecay(0)
+  //	.on('tick', ticked);
+  //simulation.stop()
+  /*var tile = svg.selectAll('.tile')
+    .data(tiles)
+    .enter().append('g')
+    .attr('class','tile')
+  var squares = tile.append('rect')
+    .attr("x", function(d){return d.x})
+    .attr("y", function(d){return d.y})
+    .attr("width",function(d){return 0.5*d.dx})
+    .attr("height",function(d){return 0.5*d.dy})
+    .style("fill", function(d){return d.c});
+  */
+
+  //var node = svg.selectAll(".node")
+  //  .data(particles)
+  //  .enter().append("g") //can't remember why we need this???
+  //  .attr("class", "node");
+
+  //var circles = node.append('circle')
+  //  .style("fill", function(d) {return d.c});
+  var shells=svg.selectAll(".ring")
+    .data(rings)
+    .enter()
+    .append('circle')
+    .attr('cx',function(d){return d.x})
+    .attr('cy',function(d){return d.y})
+    .attr('r',function(d){return d.r2})
+    .style("fill", function(d) {return d.c});
+
+  var circles=svg.selectAll(".node")
+    .data(particles)
+    .enter()
+    .append('circle')
+    .attr('id',function(d) { return "particle" + d.id; })
+    .attr('r',2)
+    .style("fill", function(d) {return d.c});
+
+  var M0=M;
+  svg.append('circle')
+    .attr("cx", x0)
+    .attr("cy", y0)
+    .attr("r", 10)
+    .style("fill", function(d){return d3.interpolateBlues(0.01)})
+    .on('click', function(d,i){
+      M=0.8*M;
+      thisCircle=d3.select(this)
+      thisCircle.style('fill',function(d){return d3.interpolateBlues(1-(M/M0))})
+      thisCircle.attr('r',10*(M/M0));
+      console.log(M);
+    });;
+
+  dt=1000
+  var r,index,nxt,smooth
+  var thisParticle, thisCircle
+  function evolve() {
+    //for (var i=0;i<nTiles;i++){
+    //  tiles[i].n=0
+    //}
+    //if (startStop==0){  timer.stop(); }
+    for (var i=0;i<nParticles;i++){
+      thisParticle=particles[i]
+      thisParticle.step(dt);
+      if (rMin<thisParticle.r & thisParticle.r<rMax){
+        //console.log('r ',r,' between ',rMin,' and ',rMax)
+        index=(nRings-1)-Math.floor((thisParticle.r-rMin)*nRings/(rMax-rMin))
+        //index = Math.floor(xTiles*(x/w))+xTiles*Math.floor(yTiles*(y/h));
+        //console.log(index,' of ',nRings)
+        //console.log(rings[index])
+        rings[index].n+=1;
+      }
+      thisParticle.step(dt);
+      if (thisParticle.x>-10 & thisParticle.x<w+10 & thisParticle.y>-10 & thisParticle.y<h+10){
+        thisCircle=d3.select('#particle'+thisParticle.id)
+        thisCircle.attr("cx", function(d) {return d.x;})
+          .attr('cy',function(d) {return d.y;})
+      }
+    }
+    //node.attr("transform", function(d) {
+    //  return "translate(" + d.x + "," + d.y + ")";
+    //});
+
+    //circles.attr("cx", function(d) {return d.x;})
+    //  .attr('cy',function(d) {return d.y;});
+
+    //circles.transition()
+    //  .attr("cx",function(d){return d.x})
+    //  .attr('cy',function(d){return d.y})
+    /*squares.transition().style('fill',function(d){
+      nxt=[]
+      if (d.id%xTiles != 0){nxt.push(-1)}//not on left edge
+      if (d.id%xTiles != xTiles-1){nxt.push(1)}//not on right edge
+      if (Math.floor(d.id/xTiles) != 0){nxt.push(-xTiles)}//not on bottom
+      if (Math.floor(d.id/xTiles) != yTiles-1){nxt.push(xTiles)}//not on top
+      smooth=(d.n*(8-nxt.length)/8)
+      for (var i=0;i<nxt.length;i++){smooth+=(1/8)*tiles[d.id+nxt[i]].n}
+      d.c=d3.interpolateBlues(nTiles*smooth/nParticles);
+      return d.c
+    })*/
+    shells.transition()
+      .style('fill',function(d){
+        //console.log('here')
+        d.c=d3.interpolateBlues(1-(cBoost*d.n/(Math.PI*(Math.pow(d.r2,2)-Math.pow(d.r1,2)))));
+        d.n=0;
+        return d.c;
+      })
+  }
+  var startStop=1
+  document.body.onkeyup = function(e){
+    if(e.keyCode == 32){
+        startStop=(startStop+1)%2
+        if (startStop==0) {  timer.stop();}
+        if (startStop==1) {timer.restart(evolve,20);}
+    }
+  }
+
+  timer=d3.interval(evolve,60);
+  </script>
+</body>
+</html>
