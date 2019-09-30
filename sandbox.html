@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>caustics</title>
+  <title>sandbox</title>
   <style>
   div.container {
     display: flex;   /* Magic begins */
@@ -19,7 +19,7 @@
     stroke: #bbb;
   }
   .node circle {
-    stroke-width: 0px;
+    stroke-width: 2px;
     r: 2px
   }
   *
@@ -67,154 +67,161 @@
     </div>
   </div>
   <script type="text/javascript">
-  var w=0.5*window.innerWidth || document.body.clientWidth;
-  var h=w
+    var width=0.5*window.innerWidth || document.body.clientWidth;
+    var height=width;
+    var svg=d3.select("#sim").append("svg");
+    svg.attr('width',width)
+      .attr('height',height);
 
-  var svg=d3.select("#sim").append("svg");
+    var G=6.67e-11; // in SI
+    var mSun=2e30;
+    var kpc=3e19;
+    var Gyr=3.15e16;
+    var Galt=G*(mSun*(Gyr**2))/(kpc**3);
 
-  svg.attr('width',w)
-  .attr('height',h);
+    var rHat=[0,0,0]
+    var a1=[0,0,0]
+    var a2=[0,0,0]
 
-  var G=4.96e-15;
-  var M=1e9;
-  var x0=(1/4)*w;
-  var y0=(3/4)*h;
-  var dx = x0<w/2 ? w-x0:x0
-  var dy = y0<h/2 ? h-y0:y0
-  var rMax=Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2))
+    function gravParticle(){
+      this.id=0
+      this.m=1e6
+      this.x=[0,0,0]
+      this.v=[0,0,0]
+      this.a=[0,0,0]
+      this.flag=0
+      this.c='black'
+      this.r=2
+      this.smooth=0.1
+    }
+    function gravity(p1,p2){ // calculating and updating the acceleration of a pair of particles
+      var r=Math.sqrt((p2.x[0]-p1.x[0])**2 + (p2.x[1]-p1.x[1])**2 + (p2.x[2]-p1.x[2])**2 + p1.smooth**2 + p2.smooth**2);
 
-  cBoost=50;
+      rHat[0]=(p2.x[0]-p1.x[0])/r;
+      rHat[1]=(p2.x[1]-p1.x[1])/r;
+      rHat[2]=(p2.x[2]-p1.x[2])/r;
 
-  function newParticle(x,y,id){
-    this.id=id
-    this.x=x;
-    this.y=y;
-    this.r=Math.sqrt(Math.pow(x-x0,2)+Math.pow(y-y0,2));
-    this.vx=Math.sqrt(G*M/Math.pow(this.r,3))*(y-y0);
-    this.vy=-Math.sqrt(G*M/Math.pow(this.r,3))*(x-x0);
-    this.c=d3.interpolateGnBu(this.r/rMax);
-    this.step = function(dt){
-      this.x=this.x+dt*this.vx;
-      this.y=this.y+dt*this.vy;
-      this.r=Math.sqrt(Math.pow(this.x-x0,2)+Math.pow(this.y-y0,2));
-      this.vx=this.vx-dt*(G*M/Math.pow(this.r,3))*(this.x-x0);
-      this.vy=this.vy-dt*(G*M/Math.pow(this.r,3))*(this.y-y0);
-    };
-  };
-  function newRing(id,r1,r2,x,y){
-    this.id=id
-    this.r1=r1
-    this.r2=r2
-    this.x=x
-    this.y=y
-    this.n=0
-    this.c=d3.interpolateBlues(1-(cBoost*nParticles/(Math.PI*(Math.pow(rMax,2)-Math.pow(rMin,2)))))
-  }
+      a1[0]=rHat[0]*Galt*p2.m/(r**2);
+      a1[1]=rHat[1]*Galt*p2.m/(r**2);
+      a1[2]=rHat[2]*Galt*p2.m/(r**2);
 
+      a2[0]=-rHat[0]*Galt*p1.m/(r**2);
+      a2[1]=-rHat[1]*Galt*p1.m/(r**2);
+      a2[2]=-rHat[2]*Galt*p1.m/(r**2);
 
-  var particles=[];
-  function makeParticle(id){
-    var P=Math.random();
-    var r=rMin+rMax*Math.sqrt(P);
-    var phi=2*Math.PI*Math.random();
-    var x=x0+r*Math.cos(phi);
-    var y=y0+r*Math.sin(phi);
-    var newPart= new newParticle(x,y,id);
-    particles.push(newPart);
-  }
-  var rMin=200
-  var nParticles=2**13
-  for(var i=0;i<nParticles;i++){
-    makeParticle(i);
-  };
+      p1.a[0]=p1.a[0]+a1[0]
+      p1.a[1]=p1.a[1]+a1[1]
+      p1.a[2]=p1.a[2]+a1[2]
 
-  function makeRing(i){
-    r1=rMin+((i-1)/nRings)*(rMax-rMin);
-    r2=rMin+((i)/nRings)*(rMax-rMin);
-    var newT=new newRing(i,r1,r2,x0,y0);
-    rings.push(newT);
-  }
-  var rings=[]
-  var nRings=64
-  var r1,r2
-  for(var i=nRings;i>0;i--){
-    makeRing(i)
-  }
-  var shells=svg.selectAll(".ring")
-    .data(rings)
-    .enter()
-    .append('circle')
-    .attr('cx',function(d){return d.x})
-    .attr('cy',function(d){return d.y})
-    .attr('r',function(d){return d.r2})
-    .style("fill", function(d) {return d.c});
-
-  var circles=svg.selectAll(".node")
-    .data(particles)
-    .enter()
-    .append('circle')
-    .attr('id',function(d) { return "particle" + d.id; })
-    .attr('r',2)
-    .style("fill", function(d) {return d.c});
-
-  var M0=M;
-  svg.append('circle')
-    .attr("cx", x0)
-    .attr("cy", y0)
-    .attr("r", 10)
-    .style("fill", function(d){return d3.interpolateBlues(0.01)})
-    .on('click', function(d,i){
-      M=0.8*M;
-      thisCircle=d3.select(this)
-      thisCircle.style('fill',function(d){return d3.interpolateBlues(1-(M/M0))})
-      thisCircle.attr('r',10*(M/M0));
-      console.log(M);
-    });;
-
-  dt=1000
-  var r,index,nxt,smooth
-  var thisParticle, thisCircle
-  function evolve() {
-    //for (var i=0;i<nTiles;i++){
-    //  tiles[i].n=0
-    //}
-    //if (startStop==0){  timer.stop(); }
-    for (var i=0;i<nParticles;i++){
-      thisParticle=particles[i]
-      thisParticle.step(dt);
-      if (rMin<thisParticle.r & thisParticle.r<rMax){
-        //console.log('r ',r,' between ',rMin,' and ',rMax)
-        index=(nRings-1)-Math.floor((thisParticle.r-rMin)*nRings/(rMax-rMin))
-        //index = Math.floor(xTiles*(x/w))+xTiles*Math.floor(yTiles*(y/h));
-        //console.log(index,' of ',nRings)
-        //console.log(rings[index])
-        rings[index].n+=1;
-      }
-      thisParticle.step(dt);
-      if (thisParticle.x>-10 & thisParticle.x<w+10 & thisParticle.y>-10 & thisParticle.y<h+10){
-        thisCircle=d3.select('#particle'+thisParticle.id)
-        thisCircle.attr("cx", function(d) {return d.x;})
-          .attr('cy',function(d) {return d.y;})
+      p2.a[0]=p2.a[0]+a2[0]
+      p2.a[1]=p2.a[1]+a2[1]
+      p2.a[2]=p2.a[2]+a2[2]
+    }
+    function update(ps){
+      clearAcc(ps)
+      for (var i=0; i<nParticles; i++){
+        if (ps[i].flag == 1){
+          var index=ps[i].id;
+          for (var j=i+1; j<nParticles; j++){
+            gravity(ps[i],ps[j]);
+          }
+        }
       }
     }
-    shells.transition()
-      .style('fill',function(d){
-        //console.log('here')
-        d.c=d3.interpolateBlues(1-(cBoost*d.n/(Math.PI*(Math.pow(d.r2,2)-Math.pow(d.r1,2)))));
-        d.n=0;
-        return d.c;
-      })
-  }
-  var startStop=1
-  document.body.onkeyup = function(e){
-    if(e.keyCode == 32){
-        startStop=(startStop+1)%2
-        if (startStop==0) {  timer.stop();}
-        if (startStop==1) {timer.restart(evolve,20);}
+    var boxSize=30;
+    var ps=[];
+    var host = new gravParticle();
+    host.m=1e11;
+    host.flag=1;
+    host.c='red'
+    host.r=20
+    host.smooth=1
+    var sat = new gravParticle();
+    sat.m=1e10;
+    sat.id=1;
+    sat.flag=1;
+    sat.x=[20,0,0];
+    sat.v=[0,-200,0];
+    sat.r=10
+    sat.c='blue'
+    sat.smooth=0.5
+    host.v[1]=-(sat.m/host.m)*sat.v[1]
+    ps.push(host);
+    ps.push(sat);
+    rMin=1
+    rMax=20
+    for (var i=0;i<5000;i++){
+      var pNew = new gravParticle();
+      pNew.m=1e8;
+      pNew.id=i+2;
+      pNew.flag=0;
+      var theta=Math.PI*Math.random();
+      var phi=2*Math.PI*Math.random();
+      var r=Math.sqrt(rMin**2+Math.random()*(rMax**2 - rMin**2));
+      pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
+      pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
+      pNew.smooth=0.1
+      ps.push(pNew);
     }
-  }
 
-  timer=d3.interval(evolve,60);
+    var nParticles=ps.length;
+
+    var circles=svg.selectAll(".node")
+      .data(ps)
+      .enter()
+      .append('circle')
+      .attr('id',function(d) { return "particle" + d.id; })
+      .attr('r',function(d) { return d.r; })
+      .style("fill", function(d) {return d.c})
+      .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
+      .attr('cy', function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);});
+
+    var dt=0.001
+
+    update(ps);
+
+    function evolve() {
+      for (var i=0; i< nParticles; i++){
+        ps[i].v[0]=ps[i].v[0]+ps[i].a[0]*dt/2;
+        ps[i].v[1]=ps[i].v[1]+ps[i].a[1]*dt/2;
+        ps[i].v[2]=ps[i].v[2]+ps[i].a[2]*dt/2;
+
+        ps[i].x[0]=ps[i].x[0]+ps[i].v[0]*dt;
+        ps[i].x[1]=ps[i].x[1]+ps[i].v[1]*dt;
+        ps[i].x[2]=ps[i].x[2]+ps[i].v[2]*dt;
+      }
+      update(ps); // finds new acceleration
+      for (var i=0; i < nParticles; i++){
+        ps[i].v[0]=ps[i].v[0]+ps[i].a[0]*dt/2;
+        ps[i].v[1]=ps[i].v[1]+ps[i].a[1]*dt/2;
+        ps[i].v[2]=ps[i].v[2]+ps[i].a[2]*dt/2;
+
+        var thisCircle=d3.select('#particle'+ps[i].id);
+        thisCircle
+          .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
+          .attr('cy',function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);})
+          .style("fill", function(d) {
+            if (d.flag==0){ return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))}
+            return d.c
+          })
+      }
+    }
+
+    function clearAcc(ps){ // clearing old accelerations at each step
+      for (var i = 0; i < ps.length; i++) {
+        ps[i].a=[0,0,0];
+      }
+    }
+
+    var startStop=1
+    document.body.onkeyup = function(e){
+      if(e.keyCode == 32){
+          startStop=(startStop+1)%2
+          if (startStop==0) {timer.stop();}
+          if (startStop==1) {timer.restart(evolve,20);}
+      }
+    }
+    var timer=d3.interval(evolve,50);
   </script>
 </body>
 </html>
