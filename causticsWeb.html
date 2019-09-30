@@ -152,29 +152,6 @@
   for(var i=nRings;i>0;i--){
     makeRing(i)
   }
-  //var simulation = d3.forceSimulation()
-  //	.alphaDecay(0)
-  //	.on('tick', ticked);
-  //simulation.stop()
-  /*var tile = svg.selectAll('.tile')
-    .data(tiles)
-    .enter().append('g')
-    .attr('class','tile')
-  var squares = tile.append('rect')
-    .attr("x", function(d){return d.x})
-    .attr("y", function(d){return d.y})
-    .attr("width",function(d){return 0.5*d.dx})
-    .attr("height",function(d){return 0.5*d.dy})
-    .style("fill", function(d){return d.c});
-  */
-
-  //var node = svg.selectAll(".node")
-  //  .data(particles)
-  //  .enter().append("g") //can't remember why we need this???
-  //  .attr("class", "node");
-
-  //var circles = node.append('circle')
-  //  .style("fill", function(d) {return d.c});
   var shells=svg.selectAll(".ring")
     .data(rings)
     .enter()
@@ -232,27 +209,6 @@
           .attr('cy',function(d) {return d.y;})
       }
     }
-    //node.attr("transform", function(d) {
-    //  return "translate(" + d.x + "," + d.y + ")";
-    //});
-
-    //circles.attr("cx", function(d) {return d.x;})
-    //  .attr('cy',function(d) {return d.y;});
-
-    //circles.transition()
-    //  .attr("cx",function(d){return d.x})
-    //  .attr('cy',function(d){return d.y})
-    /*squares.transition().style('fill',function(d){
-      nxt=[]
-      if (d.id%xTiles != 0){nxt.push(-1)}//not on left edge
-      if (d.id%xTiles != xTiles-1){nxt.push(1)}//not on right edge
-      if (Math.floor(d.id/xTiles) != 0){nxt.push(-xTiles)}//not on bottom
-      if (Math.floor(d.id/xTiles) != yTiles-1){nxt.push(xTiles)}//not on top
-      smooth=(d.n*(8-nxt.length)/8)
-      for (var i=0;i<nxt.length;i++){smooth+=(1/8)*tiles[d.id+nxt[i]].n}
-      d.c=d3.interpolateBlues(nTiles*smooth/nParticles);
-      return d.c
-    })*/
     shells.transition()
       .style('fill',function(d){
         //console.log('here')
