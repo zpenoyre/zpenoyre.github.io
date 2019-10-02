@@ -14,8 +14,7 @@
     flex-grow: 1;
     width: 50%;
   }
-  div
-  .link {
+  div.link {
     stroke: #bbb;
   }
   .node circle {
@@ -57,6 +56,7 @@
 
   </style>
   <script src="https://d3js.org/d3.v5.js"></script>
+  <script src="nbody.js"></script>
 </head>
 <body>
   <div  class="container">
@@ -73,94 +73,57 @@
     svg.attr('width',width)
       .attr('height',height);
 
-    var G=6.67e-11; // in SI
-    var mSun=2e30;
-    var kpc=3e19;
-    var Gyr=3.15e16;
-    var Galt=G*(mSun*(Gyr**2))/(kpc**3);
-
-    var rHat=[0,0,0]
-    var a1=[0,0,0]
-    var a2=[0,0,0]
-
-    function gravParticle(){
-      this.id=0
-      this.m=1e6
-      this.x=[0,0,0]
-      this.v=[0,0,0]
-      this.a=[0,0,0]
-      this.flag=0
-      this.c='black'
-      this.r=2
-      this.smooth=0.1
+    function lineElement(){
+      this.x1=0;
+      this.x2=1;
+      this.y1=0;
+      this.y2=1;
     }
-    function gravity(p1,p2){ // calculating and updating the acceleration of a pair of particles
-      var r=Math.sqrt((p2.x[0]-p1.x[0])**2 + (p2.x[1]-p1.x[1])**2 + (p2.x[2]-p1.x[2])**2 + p1.smooth**2 + p2.smooth**2);
 
-      rHat[0]=(p2.x[0]-p1.x[0])/r;
-      rHat[1]=(p2.x[1]-p1.x[1])/r;
-      rHat[2]=(p2.x[2]-p1.x[2])/r;
-
-      a1[0]=rHat[0]*Galt*p2.m/(r**2);
-      a1[1]=rHat[1]*Galt*p2.m/(r**2);
-      a1[2]=rHat[2]*Galt*p2.m/(r**2);
-
-      a2[0]=-rHat[0]*Galt*p1.m/(r**2);
-      a2[1]=-rHat[1]*Galt*p1.m/(r**2);
-      a2[2]=-rHat[2]*Galt*p1.m/(r**2);
-
-      p1.a[0]=p1.a[0]+a1[0]
-      p1.a[1]=p1.a[1]+a1[1]
-      p1.a[2]=p1.a[2]+a1[2]
-
-      p2.a[0]=p2.a[0]+a2[0]
-      p2.a[1]=p2.a[1]+a2[1]
-      p2.a[2]=p2.a[2]+a2[2]
-    }
-    function update(ps){
-      clearAcc(ps)
-      for (var i=0; i<nParticles; i++){
-        if (ps[i].flag == 1){
-          var index=ps[i].id;
-          for (var j=i+1; j<nParticles; j++){
-            gravity(ps[i],ps[j]);
-          }
-        }
-      }
-    }
     var boxSize=30;
     var ps=[];
+    var lines=[];
     var host = new gravParticle();
     host.m=1e11;
     host.flag=1;
-    host.c='red'
-    host.r=20
+    host.c='black'
     host.smooth=1
+    host.r=0.5*host.smooth*width/boxSize
     var sat = new gravParticle();
-    sat.m=1e10;
+    sat.m=2e10;
     sat.id=1;
     sat.flag=1;
-    sat.x=[20,0,0];
-    sat.v=[0,-200,0];
-    sat.r=10
-    sat.c='blue'
+    sat.x=[30,0,0];
+    sat.v=[0,Math.sqrt(Galt*2e11/30),0];
+    sat.c='black'
     sat.smooth=0.5
+    sat.r=0.5*sat.smooth*width/boxSize
     host.v[1]=-(sat.m/host.m)*sat.v[1]
     ps.push(host);
     ps.push(sat);
+    var satXs=[sat.x[0]];
+    var satYs=[sat.x[1]];
     rMin=1
     rMax=20
-    for (var i=0;i<5000;i++){
+    nPassive=5000;
+    for (var i=0;i<nPassive;i++){
       var pNew = new gravParticle();
-      pNew.m=1e8;
+      pNew.m=1e11/nPassive;
       pNew.id=i+2;
       pNew.flag=0;
+      //var theta=0.5*Math.PI;
       var theta=Math.PI*Math.random();
       var phi=2*Math.PI*Math.random();
-      var r=Math.sqrt(rMin**2+Math.random()*(rMax**2 - rMin**2));
+      var r=rMin+Math.random()*(rMax - rMin);
       pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
-      pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
+      var v=Math.sqrt(Galt*1e11/r);
+      //var vTheta=0.5*Math.PI
+      var vTheta=Math.PI*Math.random();
+      var vPhi=2*Math.PI*Math.random();
+      pNew.v=[v*Math.sin(vTheta)*Math.cos(vPhi),v*Math.sin(vTheta)*Math.sin(vPhi),v*Math.cos(vTheta)]
+      //pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
       pNew.smooth=0.1
+      pNew.r=pNew.smooth*width/(2*boxSize)
       ps.push(pNew);
     }
 
@@ -171,31 +134,44 @@
       .enter()
       .append('circle')
       .attr('id',function(d) { return "particle" + d.id; })
-      .attr('r',function(d) { return d.r; })
+      .attr('r',function(d,i) {
+        if (i>1000) {return 0}
+        return d.r; })
       .style("fill", function(d) {return d.c})
       .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
       .attr('cy', function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);});
 
     var dt=0.001
+    var tTotal=0
+    var nSteps=0
 
-    update(ps);
+    acceleration(ps);
 
     function evolve() {
-      for (var i=0; i< nParticles; i++){
-        ps[i].v[0]=ps[i].v[0]+ps[i].a[0]*dt/2;
-        ps[i].v[1]=ps[i].v[1]+ps[i].a[1]*dt/2;
-        ps[i].v[2]=ps[i].v[2]+ps[i].a[2]*dt/2;
-
-        ps[i].x[0]=ps[i].x[0]+ps[i].v[0]*dt;
-        ps[i].x[1]=ps[i].x[1]+ps[i].v[1]*dt;
-        ps[i].x[2]=ps[i].x[2]+ps[i].v[2]*dt;
-      }
-      update(ps); // finds new acceleration
+      leapfrog(dt);
+      tTotal=tTotal+dt;
+      nSteps=nSteps+1;
       for (var i=0; i < nParticles; i++){
-        ps[i].v[0]=ps[i].v[0]+ps[i].a[0]*dt/2;
-        ps[i].v[1]=ps[i].v[1]+ps[i].a[1]*dt/2;
-        ps[i].v[2]=ps[i].v[2]+ps[i].a[2]*dt/2;
 
+        if (i==1){
+          var sat=ps[i];
+          satXs.push(sat.x[0]);
+          satYs.push(sat.x[1]);
+          var newLine = new lineElement();
+          newLine.x1=satXs[nSteps-1];
+          newLine.x2=satXs[nSteps];
+          newLine.y1=satYs[nSteps-1];
+          newLine.y2=satYs[nSteps];
+          lines.push(newLine);
+          svg.selectAll("line").data(lines).join("line")
+            .attr("x1", function(d) {return width*(d.x1+boxSize)/(2*boxSize);})
+            .attr("y1", function(d) {return width*(d.y1+boxSize)/(2*boxSize);})
+            .attr("x2", function(d) {return width*(d.x2+boxSize)/(2*boxSize);})
+            .attr("y2", function(d) {return width*(d.y2+boxSize)/(2*boxSize);})
+            .style("stroke", "#ccc");
+        }
+        //var r=Math.sqrt((ps[i].x[0]-ps[0].x[0])**2 + (ps[i].x[1]-ps[0].x[1])**2 + (ps[i].x[2]-ps[0].x[2])**2 );
+        if (i>1000) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
           .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
@@ -203,25 +179,33 @@
           .style("fill", function(d) {
             if (d.flag==0){ return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))}
             return d.c
-          })
+        })
       }
+
+      t = d3.now();
+      var fps = 1000 / (t - t0);
+      info.html(fmt(fps) + " fps = " + fmt(fps) + ' frames/sec');
+      t0=t;
     }
 
-    function clearAcc(ps){ // clearing old accelerations at each step
-      for (var i = 0; i < ps.length; i++) {
-        ps[i].a=[0,0,0];
-      }
-    }
+    var info = d3.select('body').append('div')
+      .style('position', 'absolute')
+      .style('top', '0')
+      .style('left', '0')
+      .style('padding', '5px')
+      .style('background-color', '#aaa');
+    var start = d3.now(), t0 = 0, sum = 0, cnt = 0;
+    var fmt = d3.format(",d");
 
     var startStop=1
     document.body.onkeyup = function(e){
       if(e.keyCode == 32){
           startStop=(startStop+1)%2
           if (startStop==0) {timer.stop();}
-          if (startStop==1) {timer.restart(evolve,20);}
+          if (startStop==1) {timer.restart(evolve,1000/30);}
       }
     }
-    var timer=d3.interval(evolve,50);
+    var timer=d3.interval(evolve,1000/30);
   </script>
 </body>
 </html>
