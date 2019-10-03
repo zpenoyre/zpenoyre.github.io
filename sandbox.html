@@ -17,6 +17,9 @@
   div.link {
     stroke: #bbb;
   }
+  button  {
+    float: left
+  }
   .node circle {
     stroke-width: 2px;
     r: 2px
@@ -67,72 +70,77 @@
     </div>
   </div>
   <script type="text/javascript">
+
     var width=0.5*window.innerWidth || document.body.clientWidth;
     var height=width;
     var svg=d3.select("#sim").append("svg");
     svg.attr('width',width)
       .attr('height',height);
 
-    function lineElement(){
-      this.x1=0;
-      this.x2=1;
-      this.y1=0;
-      this.y2=1;
-    }
 
     var boxSize=30;
-    var ps=[];
-    var lines=[];
-    var host = new gravParticle();
-    host.m=1e11;
-    host.flag=1;
-    host.c='black'
-    host.smooth=1
-    host.r=0.5*host.smooth*width/boxSize
-    var sat = new gravParticle();
-    sat.m=2e10;
-    sat.id=1;
-    sat.flag=1;
-    sat.x=[30,0,0];
-    sat.v=[0,Math.sqrt(Galt*2e11/30),0];
-    sat.c='black'
-    sat.smooth=0.5
-    sat.r=0.5*sat.smooth*width/boxSize
-    host.v[1]=-(sat.m/host.m)*sat.v[1]
-    ps.push(host);
-    ps.push(sat);
-    var satXs=[sat.x[0]];
-    var satYs=[sat.x[1]];
-    rMin=1
-    rMax=20
-    nPassive=5000;
-    for (var i=0;i<nPassive;i++){
-      var pNew = new gravParticle();
-      pNew.m=1e11/nPassive;
-      pNew.id=i+2;
-      pNew.flag=0;
-      //var theta=0.5*Math.PI;
-      var theta=Math.PI*Math.random();
-      var phi=2*Math.PI*Math.random();
-      var r=rMin+Math.random()*(rMax - rMin);
-      pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
-      var v=Math.sqrt(Galt*1e11/r);
-      //var vTheta=0.5*Math.PI
-      var vTheta=Math.PI*Math.random();
-      var vPhi=2*Math.PI*Math.random();
-      pNew.v=[v*Math.sin(vTheta)*Math.cos(vPhi),v*Math.sin(vTheta)*Math.sin(vPhi),v*Math.cos(vTheta)]
-      //pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
-      pNew.smooth=0.1
-      pNew.r=pNew.smooth*width/(2*boxSize)
-      ps.push(pNew);
+    var ps;
+    var lines;
+    var satXs;
+    var satYs;
+    function initialize() {
+      ps=[];
+      lines=[];
+      satXs=[];
+      satYs=[];
+      var host = new gravParticle();
+      host.m=1e11;
+      host.flag=1;
+      host.c='black'
+      host.smooth=1
+      host.r=0.5*host.smooth*width/boxSize
+      var sat = new gravParticle();
+      sat.m=2e10;
+      sat.id=1;
+      sat.flag=1;
+      sat.x=[30,0,0];
+      sat.v=[0,0.9*Math.sqrt(Galt*2e11/30),0];
+      sat.c='black'
+      sat.smooth=0.5
+      sat.r=0.5*sat.smooth*width/boxSize
+      host.v[1]=-(sat.m/host.m)*sat.v[1]
+      ps.push(host);
+      ps.push(sat);
+      satXs.push(sat.x[0]);
+      satYs.push(sat.x[1]);
+      rMin=1
+      rMax=20
+      nPassive=10;
+      for (var i=0;i<nPassive;i++){
+        var pNew = new gravParticle();
+        pNew.m=1e11/nPassive;
+        pNew.id=i+2;
+        pNew.flag=1;
+        var theta=0.5*Math.PI;
+        //var theta=Math.PI*Math.random();
+        var phi=2*Math.PI*Math.random();
+        var r=rMin+Math.sqrt(Math.random()*(rMax**2 - rMin**2));
+        //var r=rMin+Math.random()*(rMax - rMin);
+        pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
+        var v=Math.sqrt(Galt*1e11/r);
+        var vTheta=0.5*Math.PI
+        //var vTheta=Math.PI*Math.random();
+        //var vPhi=phi+Math.PI/2
+        var vPhi=2*Math.PI*Math.random();
+        pNew.v=[v*Math.sin(vTheta)*Math.cos(vPhi),v*Math.sin(vTheta)*Math.sin(vPhi),v*Math.cos(vTheta)]
+        //pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
+        pNew.smooth=0.1
+        pNew.r=0.2*width/(2*boxSize)
+        ps.push(pNew);
+      }
     }
+    initialize();
 
     var nParticles=ps.length;
 
     var circles=svg.selectAll(".node")
       .data(ps)
-      .enter()
-      .append('circle')
+      .join('circle')
       .attr('id',function(d) { return "particle" + d.id; })
       .attr('r',function(d,i) {
         if (i>1000) {return 0}
@@ -146,22 +154,22 @@
     var nSteps=0
 
     acceleration(ps);
-
+    var isFixed=0
     function evolve() {
-      leapfrog(dt);
+      leapfrog(dt,fixed=isFixed);
       tTotal=tTotal+dt;
       nSteps=nSteps+1;
       for (var i=0; i < nParticles; i++){
 
-        if (i==1){
+        if ((i==1) && (nSteps%10==0)){
           var sat=ps[i];
           satXs.push(sat.x[0]);
           satYs.push(sat.x[1]);
           var newLine = new lineElement();
-          newLine.x1=satXs[nSteps-1];
-          newLine.x2=satXs[nSteps];
-          newLine.y1=satYs[nSteps-1];
-          newLine.y2=satYs[nSteps];
+          newLine.x1=satXs[(nSteps/10)-1];
+          newLine.x2=satXs[(nSteps/10)];
+          newLine.y1=satYs[(nSteps/10)-1];
+          newLine.y2=satYs[(nSteps/10)];
           lines.push(newLine);
           svg.selectAll("line").data(lines).join("line")
             .attr("x1", function(d) {return width*(d.x1+boxSize)/(2*boxSize);})
@@ -170,14 +178,25 @@
             .attr("y2", function(d) {return width*(d.y2+boxSize)/(2*boxSize);})
             .style("stroke", "#ccc");
         }
-        //var r=Math.sqrt((ps[i].x[0]-ps[0].x[0])**2 + (ps[i].x[1]-ps[0].x[1])**2 + (ps[i].x[2]-ps[0].x[2])**2 );
+
         if (i>1000) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
-          .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
+          .attr('cx', function(d) {
+            console.log(d)
+            console.log(d.x)
+            return width*(d.x[0]+boxSize)/(2*boxSize);})
           .attr('cy',function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);})
-          .style("fill", function(d) {
-            if (d.flag==0){ return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))}
+          .style("fill", function(d,i) {
+            if (d.id>1){
+              var v=Math.sqrt(d.v[0]**2 + d.v[1]**2 + d.v[2]**2 );
+              var energy = d.Phi + 0.5*d.m*(v**2)
+              var virial = 0.5*d.m*(v**2) + d.Phi/2
+              return d3.interpolateSpectral(virial/1e13)
+              //var v=Math.sqrt(d.v[0]**2 + d.v[1]**2 + d.v[2]**2 );
+              //return d3.interpolateSpectral(v/300)
+              //return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))
+            }
             return d.c
         })
       }
@@ -206,6 +225,29 @@
       }
     }
     var timer=d3.interval(evolve,1000/30);
+
+    // Initialize the button
+    var allGroup = ["yellow", "blue", "red", "green", "purple", "black"]
+    var fixButton = d3.select("#sim")
+      .append('button')
+      .text("change data")
+      .on("click",function(){
+        isFixed=(isFixed+1)% 2;
+      });
+    var restartButton = d3.select("#sim")
+      .append('button')
+      .text("restart")
+      .on("click",function(){
+        nSteps=0;
+        initialize();
+      });
+    //dropdownButton // Add a button
+    //  .selectAll('myOptions') // Next 4 lines add 6 options = 6 colors
+   	 // .data(allGroup)
+      //.enter()
+  	  //.append('option')
+      //.text(function (d) { return d; }) // text showed in the menu
+      //.attr("value", function (d) { return d; }) // corresponding value returned by the button
   </script>
 </body>
 </html>
