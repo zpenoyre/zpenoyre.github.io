@@ -16,8 +16,6 @@ function gravParticle(){
   this.a=[0,0,0]
   this.Phi=0
   this.flag=0
-  this.c='black'
-  this.r=2
   this.smooth=0.1
 }
 

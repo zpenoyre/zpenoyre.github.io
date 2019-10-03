@@ -60,6 +60,8 @@
   </style>
   <script src="https://d3js.org/d3.v5.js"></script>
   <script src="nbody.js"></script>
+  <script src="initialize.js"></script>
+  <script src="drawing.js"></script>
 </head>
 <body>
   <div  class="container">
@@ -68,6 +70,14 @@
       <h1> The sandbox </h1>
       <p> somewhere for me to play with new ideas </p>
     </div>
+  </div>
+  <div class="container">
+    <div class='sim' id='sim'></div>
+    <div class='text'>
+      <h1> The sandbox </h1>
+      <p> somewhere for me to play with new ideas </p>
+    </div>
+    <div class='controls' id='controls'></div>
   </div>
   <script type="text/javascript">
 
@@ -78,76 +88,30 @@
       .attr('height',height);
 
 
-    var boxSize=30;
-    var ps;
-    var lines;
-    var satXs;
-    var satYs;
-    function initialize() {
-      ps=[];
-      lines=[];
-      satXs=[];
-      satYs=[];
-      var host = new gravParticle();
-      host.m=1e11;
-      host.flag=1;
-      host.c='black'
-      host.smooth=1
-      host.r=0.5*host.smooth*width/boxSize
-      var sat = new gravParticle();
-      sat.m=2e10;
-      sat.id=1;
-      sat.flag=1;
-      sat.x=[30,0,0];
-      sat.v=[0,0.9*Math.sqrt(Galt*2e11/30),0];
-      sat.c='black'
-      sat.smooth=0.5
-      sat.r=0.5*sat.smooth*width/boxSize
-      host.v[1]=-(sat.m/host.m)*sat.v[1]
-      ps.push(host);
-      ps.push(sat);
-      satXs.push(sat.x[0]);
-      satYs.push(sat.x[1]);
-      rMin=1
-      rMax=20
-      nPassive=10;
-      for (var i=0;i<nPassive;i++){
-        var pNew = new gravParticle();
-        pNew.m=1e11/nPassive;
-        pNew.id=i+2;
-        pNew.flag=1;
-        var theta=0.5*Math.PI;
-        //var theta=Math.PI*Math.random();
-        var phi=2*Math.PI*Math.random();
-        var r=rMin+Math.sqrt(Math.random()*(rMax**2 - rMin**2));
-        //var r=rMin+Math.random()*(rMax - rMin);
-        pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
-        var v=Math.sqrt(Galt*1e11/r);
-        var vTheta=0.5*Math.PI
-        //var vTheta=Math.PI*Math.random();
-        //var vPhi=phi+Math.PI/2
-        var vPhi=2*Math.PI*Math.random();
-        pNew.v=[v*Math.sin(vTheta)*Math.cos(vPhi),v*Math.sin(vTheta)*Math.sin(vPhi),v*Math.cos(vTheta)]
-        //pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
-        pNew.smooth=0.1
-        pNew.r=0.2*width/(2*boxSize)
-        ps.push(pNew);
-      }
-    }
-    initialize();
+    var boxSize=30; // distance from edge to centre of visible box in kpc (for conversion to pixels)
+    var ps=[];
+    var lines=[];
+    var satXs=[];
+    var satYs=[];
+
+    var nPassive=5000;
+    var x0=[30,0,0]
+    var v0=[0,180,0]
+    hostOptions={m: 1e11, smooth:0.5}
+    satOptions={m: 2e10, x: x0, v: v0, smooth: 0.2}
+    haloOptions={shape: 'sphere',rMin: 2, smooth:0.1, active:0}
+    ps=initializeParticle(ps,hostOptions)
+    ps=initializeParticle(ps,satOptions)
+    ps=initializeHalo(ps,nPassive,haloOptions)
+
+    centreFrame(ps);
+
+    satXs.push(ps[1].x[0])
+    satYs.push(ps[1].x[1])
 
     var nParticles=ps.length;
 
-    var circles=svg.selectAll(".node")
-      .data(ps)
-      .join('circle')
-      .attr('id',function(d) { return "particle" + d.id; })
-      .attr('r',function(d,i) {
-        if (i>1000) {return 0}
-        return d.r; })
-      .style("fill", function(d) {return d.c})
-      .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
-      .attr('cy', function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);});
+    var circles=joinCircles();
 
     var dt=0.001
     var tTotal=0
@@ -182,10 +146,7 @@
         if (i>1000) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
-          .attr('cx', function(d) {
-            console.log(d)
-            console.log(d.x)
-            return width*(d.x[0]+boxSize)/(2*boxSize);})
+          .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
           .attr('cy',function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);})
           .style("fill", function(d,i) {
             if (d.id>1){
@@ -193,9 +154,6 @@
               var energy = d.Phi + 0.5*d.m*(v**2)
               var virial = 0.5*d.m*(v**2) + d.Phi/2
               return d3.interpolateSpectral(virial/1e13)
-              //var v=Math.sqrt(d.v[0]**2 + d.v[1]**2 + d.v[2]**2 );
-              //return d3.interpolateSpectral(v/300)
-              //return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))
             }
             return d.c
         })
@@ -230,7 +188,7 @@
     var allGroup = ["yellow", "blue", "red", "green", "purple", "black"]
     var fixButton = d3.select("#sim")
       .append('button')
-      .text("change data")
+      .text("fix center")
       .on("click",function(){
         isFixed=(isFixed+1)% 2;
       });
@@ -239,15 +197,21 @@
       .text("restart")
       .on("click",function(){
         nSteps=0;
-        initialize();
+        ps=[];
+        lines=[];
+        satXs=[];
+        satYs=[];
+
+        ps=initializeParticle(ps,hostOptions)
+        ps=initializeParticle(ps,satOptions)
+        ps=initializeHalo(ps,nPassive,haloOptions)
+
+        satXs.push(ps[1].x[0])
+        satYs.push(ps[1].x[1])
+
+        circles.remove();
+        circles=joinCircles();
       });
-    //dropdownButton // Add a button
-    //  .selectAll('myOptions') // Next 4 lines add 6 options = 6 colors
-   	 // .data(allGroup)
-      //.enter()
-  	  //.append('option')
-      //.text(function (d) { return d; }) // text showed in the menu
-      //.attr("value", function (d) { return d; }) // corresponding value returned by the button
-  </script>
+    </script>
 </body>
 </html>
