@@ -5,17 +5,46 @@
   <title>sandbox</title>
   <style>
   div.container {
-    display: flex;   /* Magic begins */
-    flex-direction: row;
-    width: 100vw;
-    height: 50vw;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
   }
   div.sim {
-    flex-grow: 1;
-    width: 50%;
+    grid-column-start: 1;
+    grid-column-end: 3;
+    grid-row-start: 1;
+    grid-row-end: 4;
   }
   div.link {
     stroke: #bbb;
+  }
+  div.text
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 3;
+    grid-row-end: 4;
+    padding-left: 5%;
+    padding-right: 1%;
+    align-self: flex-end;
+    text-align: right;
+    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
+    font-weight: bold;
+    color: black;
+  }
+  div.header
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 2;
+  }
+  div.controls
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 2;
+    grid-row-end: 3;
   }
   button  {
     float: left
@@ -28,18 +57,6 @@
   {
     margin:0;
     padding:0;
-  }
-  div.text
-  {
-    flex-grow: 1;
-    width: 50%;
-    padding-left: 5%;
-    padding-right: 1%;
-    align-self: flex-end;
-    text-align: right;
-    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
-    font-weight: bold;
-    color: black;
   }
   h1
   {
@@ -64,42 +81,36 @@
   <script src="drawing.js"></script>
 </head>
 <body>
-  <div  class="container">
-    <div class="sim" id="sim"> </div>
-    <div class="text">
-      <h1> The sandbox </h1>
-      <p> somewhere for me to play with new ideas </p>
-    </div>
-  </div>
   <div class="container">
     <div class='sim' id='sim'></div>
+    <div class='header' id='header'></div>
+    <div class='controls' id='controls'></div>
     <div class='text'>
       <h1> The sandbox </h1>
       <p> somewhere for me to play with new ideas </p>
     </div>
-    <div class='controls' id='controls'></div>
   </div>
   <script type="text/javascript">
-
-    var width=0.5*window.innerWidth || document.body.clientWidth;
-    var height=width;
+    var simDiv = document.getElementById("sim");
+    var width = simDiv.clientWidth;
+    var height = window.innerHeight;
+    var size = Math.min(width,height);
     var svg=d3.select("#sim").append("svg");
-    svg.attr('width',width)
-      .attr('height',height);
+    svg.attr('width',size)
+      .attr('height',size);
 
-
-    var boxSize=30; // distance from edge to centre of visible box in kpc (for conversion to pixels)
+    var boxSize=32; // distance from edge to centre of visible box in kpc (for conversion to pixels)
     var ps=[];
     var lines=[];
     var satXs=[];
     var satYs=[];
 
-    var nPassive=5000;
+    var nPassive=1000;
     var x0=[30,0,0]
     var v0=[0,180,0]
-    hostOptions={m: 1e11, smooth:0.5}
-    satOptions={m: 2e10, x: x0, v: v0, smooth: 0.2}
-    haloOptions={shape: 'sphere',rMin: 2, smooth:0.1, active:0}
+    hostOptions={m: 1e11, smooth:1}
+    satOptions={m: 2e10, x: x0, v: v0, smooth: 0.5}
+    haloOptions={shape: 'sphere',rMin: 2, smooth:0.2, active:0}
     ps=initializeParticle(ps,hostOptions)
     ps=initializeParticle(ps,satOptions)
     ps=initializeHalo(ps,nPassive,haloOptions)
@@ -136,24 +147,32 @@
           newLine.y2=satYs[(nSteps/10)];
           lines.push(newLine);
           svg.selectAll("line").data(lines).join("line")
-            .attr("x1", function(d) {return width*(d.x1+boxSize)/(2*boxSize);})
-            .attr("y1", function(d) {return width*(d.y1+boxSize)/(2*boxSize);})
-            .attr("x2", function(d) {return width*(d.x2+boxSize)/(2*boxSize);})
-            .attr("y2", function(d) {return width*(d.y2+boxSize)/(2*boxSize);})
+            .attr("x1", function(d) {return size*(d.x1+boxSize)/(2*boxSize);})
+            .attr("y1", function(d) {return size*(d.y1+boxSize)/(2*boxSize);})
+            .attr("x2", function(d) {return size*(d.x2+boxSize)/(2*boxSize);})
+            .attr("y2", function(d) {return size*(d.y2+boxSize)/(2*boxSize);})
             .style("stroke", "#ccc");
         }
 
         if (i>1000) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
-          .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
-          .attr('cy',function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);})
-          .style("fill", function(d,i) {
+          .attr('cx', function(d) {return size*(d.x[0]+boxSize)/(2*boxSize);})
+          .attr('cy',function(d) {return size*(d.x[1]+boxSize)/(2*boxSize);})
+          .style("fill", function(d) {
             if (d.id>1){
-              var v=Math.sqrt(d.v[0]**2 + d.v[1]**2 + d.v[2]**2 );
-              var energy = d.Phi + 0.5*d.m*(v**2)
-              var virial = 0.5*d.m*(v**2) + d.Phi/2
-              return d3.interpolateSpectral(virial/1e13)
+              //console.log(ps[i])
+              //console.log(cScheme)
+              //console.log(cScheme.function(ps[i]))
+              if (cScheme.isLog==0) {
+                cVal=(cScheme.function(ps[i])-cScheme.range[0])/(cScheme.range[1]-cScheme.range[0])
+              }
+              if (cScheme.isLog==1)  {
+                cVal=(Math.log10(Math.abs(cScheme.function(ps[i])))-Math.log10(cScheme.range[0]))/(Math.log10(cScheme.range[1])-Math.log10(cScheme.range[0]))
+              }
+              //console.log(cVal)
+              //console.log(cScheme.cMap(cVal))
+              return cScheme.cMap(cVal)
             }
             return d.c
         })
@@ -186,13 +205,13 @@
 
     // Initialize the button
     var allGroup = ["yellow", "blue", "red", "green", "purple", "black"]
-    var fixButton = d3.select("#sim")
+    var fixButton = d3.select("#controls")
       .append('button')
       .text("fix center")
       .on("click",function(){
         isFixed=(isFixed+1)% 2;
       });
-    var restartButton = d3.select("#sim")
+    var restartButton = d3.select("#controls")
       .append('button')
       .text("restart")
       .on("click",function(){
@@ -212,6 +231,29 @@
         circles.remove();
         circles=joinCircles();
       });
-    </script>
+    var cScheme=cSchemes[0]
+    var selectedColour;
+    var colourPicker = d3.select("#controls")
+      .append('select');
+    colourPicker // Add a button
+      .selectAll('myOptions') // Next 4 lines add 6 options = 6 colors
+   	  .data(cSchemes)
+      .enter()
+  	  .append('option')
+      .text(function (d) { return d.name; }) // text showed in the menu
+      .attr("value", function (d) { return d.name; }) // corresponding value returned by the button
+    colourPicker
+      .on("change", function(d) {
+        //console.log('here')
+        // recover the option that has been chosen
+        selectedColour = d3.select(this).property("value")
+        thisIndex=0
+        for (var i=0;i<cSchemes.length;i++){
+          if (cSchemes[i].name==selectedColour) {thisIndex=i;}
+        }
+        //console.log(thisIndex)
+        cScheme=cSchemes[thisIndex]
+      });
+  </script>
 </body>
 </html>
