@@ -5,17 +5,49 @@
   <title>sandbox</title>
   <style>
   div.container {
-    display: flex;   /* Magic begins */
-    flex-direction: row;
-    width: 100vw;
-    height: 50vw;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
   }
   div.sim {
-    flex-grow: 1;
-    width: 50%;
+    grid-column-start: 1;
+    grid-column-end: 3;
+    grid-row-start: 1;
+    grid-row-end: 4;
   }
   div.link {
     stroke: #bbb;
+  }
+  div.text
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 3;
+    grid-row-end: 4;
+    padding-left: 5%;
+    padding-right: 1%;
+    align-self: flex-end;
+    text-align: right;
+    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
+    font-weight: bold;
+    color: black;
+  }
+  div.header
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 2;
+  }
+  div.controls
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 2;
+    grid-row-end: 3;
+  }
+  button  {
+    float: left
   }
   .node circle {
     stroke-width: 2px;
@@ -25,18 +57,6 @@
   {
     margin:0;
     padding:0;
-  }
-  div.text
-  {
-    flex-grow: 1;
-    width: 50%;
-    padding-left: 5%;
-    padding-right: 1%;
-    align-self: flex-end;
-    text-align: right;
-    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
-    font-weight: bold;
-    color: black;
   }
   h1
   {
@@ -57,127 +77,103 @@
   </style>
   <script src="https://d3js.org/d3.v5.js"></script>
   <script src="nbody.js"></script>
+  <script src="initialize.js"></script>
+  <script src="drawing.js"></script>
 </head>
 <body>
-  <div  class="container">
-    <div class="sim" id="sim"> </div>
-    <div class="text">
+  <div class="container">
+    <div class='sim' id='sim'></div>
+    <div class='header' id='header'></div>
+    <div class='controls' id='controls'></div>
+    <div class='text'>
       <h1> The sandbox </h1>
       <p> somewhere for me to play with new ideas </p>
     </div>
   </div>
   <script type="text/javascript">
-    var width=0.5*window.innerWidth || document.body.clientWidth;
-    var height=width;
+    var simDiv = document.getElementById("sim");
+    var width = simDiv.clientWidth;
+    var height = window.innerHeight;
+    var size = Math.min(width,height);
     var svg=d3.select("#sim").append("svg");
-    svg.attr('width',width)
-      .attr('height',height);
+    svg.attr('width',size)
+      .attr('height',size);
 
-    function lineElement(){
-      this.x1=0;
-      this.x2=1;
-      this.y1=0;
-      this.y2=1;
-    }
-
-    var boxSize=30;
+    var boxSize=32; // distance from edge to centre of visible box in kpc (for conversion to pixels)
     var ps=[];
     var lines=[];
-    var host = new gravParticle();
-    host.m=1e11;
-    host.flag=1;
-    host.c='black'
-    host.smooth=1
-    host.r=0.5*host.smooth*width/boxSize
-    var sat = new gravParticle();
-    sat.m=2e10;
-    sat.id=1;
-    sat.flag=1;
-    sat.x=[30,0,0];
-    sat.v=[0,Math.sqrt(Galt*2e11/30),0];
-    sat.c='black'
-    sat.smooth=0.5
-    sat.r=0.5*sat.smooth*width/boxSize
-    host.v[1]=-(sat.m/host.m)*sat.v[1]
-    ps.push(host);
-    ps.push(sat);
-    var satXs=[sat.x[0]];
-    var satYs=[sat.x[1]];
-    rMin=1
-    rMax=20
-    nPassive=5000;
-    for (var i=0;i<nPassive;i++){
-      var pNew = new gravParticle();
-      pNew.m=1e11/nPassive;
-      pNew.id=i+2;
-      pNew.flag=0;
-      //var theta=0.5*Math.PI;
-      var theta=Math.PI*Math.random();
-      var phi=2*Math.PI*Math.random();
-      var r=rMin+Math.random()*(rMax - rMin);
-      pNew.x=[r*Math.cos(phi)*Math.sin(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(theta)];
-      var v=Math.sqrt(Galt*1e11/r);
-      //var vTheta=0.5*Math.PI
-      var vTheta=Math.PI*Math.random();
-      var vPhi=2*Math.PI*Math.random();
-      pNew.v=[v*Math.sin(vTheta)*Math.cos(vPhi),v*Math.sin(vTheta)*Math.sin(vPhi),v*Math.cos(vTheta)]
-      //pNew.v=[150*(-1+2*Math.random()),150*(-1+2*Math.random()),150*(-1+2*Math.random())];
-      pNew.smooth=0.1
-      pNew.r=pNew.smooth*width/(2*boxSize)
-      ps.push(pNew);
-    }
+    var satXs=[];
+    var satYs=[];
+
+    var nPassive=1000;
+    var x0=[30,0,0]
+    var v0=[0,180,0]
+    hostOptions={m: 1e11, smooth:1}
+    satOptions={m: 2e10, x: x0, v: v0, smooth: 0.5}
+    haloOptions={shape: 'sphere',rMin: 2, smooth:0.2, active:0}
+    ps=initializeParticle(ps,hostOptions)
+    ps=initializeParticle(ps,satOptions)
+    ps=initializeHalo(ps,nPassive,haloOptions)
+
+    centreFrame(ps);
+
+    satXs.push(ps[1].x[0])
+    satYs.push(ps[1].x[1])
 
     var nParticles=ps.length;
 
-    var circles=svg.selectAll(".node")
-      .data(ps)
-      .enter()
-      .append('circle')
-      .attr('id',function(d) { return "particle" + d.id; })
-      .attr('r',function(d,i) {
-        if (i>1000) {return 0}
-        return d.r; })
-      .style("fill", function(d) {return d.c})
-      .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
-      .attr('cy', function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);});
+    var circles=joinCircles();
 
     var dt=0.001
     var tTotal=0
     var nSteps=0
 
     acceleration(ps);
-
+    var isFixed=0
     function evolve() {
-      leapfrog(dt);
+      leapfrog(dt,fixed=isFixed);
       tTotal=tTotal+dt;
       nSteps=nSteps+1;
       for (var i=0; i < nParticles; i++){
 
-        if (i==1){
+        if ((i==1) && (nSteps%10==0)){
           var sat=ps[i];
           satXs.push(sat.x[0]);
           satYs.push(sat.x[1]);
           var newLine = new lineElement();
-          newLine.x1=satXs[nSteps-1];
-          newLine.x2=satXs[nSteps];
-          newLine.y1=satYs[nSteps-1];
-          newLine.y2=satYs[nSteps];
+          newLine.x1=satXs[(nSteps/10)-1];
+          newLine.x2=satXs[(nSteps/10)];
+          newLine.y1=satYs[(nSteps/10)-1];
+          newLine.y2=satYs[(nSteps/10)];
           lines.push(newLine);
           svg.selectAll("line").data(lines).join("line")
-            .attr("x1", function(d) {return width*(d.x1+boxSize)/(2*boxSize);})
-            .attr("y1", function(d) {return width*(d.y1+boxSize)/(2*boxSize);})
-            .attr("x2", function(d) {return width*(d.x2+boxSize)/(2*boxSize);})
-            .attr("y2", function(d) {return width*(d.y2+boxSize)/(2*boxSize);})
+            .attr("x1", function(d) {return size*(d.x1+boxSize)/(2*boxSize);})
+            .attr("y1", function(d) {return size*(d.y1+boxSize)/(2*boxSize);})
+            .attr("x2", function(d) {return size*(d.x2+boxSize)/(2*boxSize);})
+            .attr("y2", function(d) {return size*(d.y2+boxSize)/(2*boxSize);})
             .style("stroke", "#ccc");
         }
-        //var r=Math.sqrt((ps[i].x[0]-ps[0].x[0])**2 + (ps[i].x[1]-ps[0].x[1])**2 + (ps[i].x[2]-ps[0].x[2])**2 );
+
         if (i>1000) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
-          .attr('cx', function(d) {return width*(d.x[0]+boxSize)/(2*boxSize);})
-          .attr('cy',function(d) {return width*(d.x[1]+boxSize)/(2*boxSize);})
+          .attr('cx', function(d) {return size*(d.x[0]+boxSize)/(2*boxSize);})
+          .attr('cy',function(d) {return size*(d.x[1]+boxSize)/(2*boxSize);})
           .style("fill", function(d) {
-            if (d.flag==0){ return d3.interpolateSpectral((d.x[2]+boxSize)/(2*boxSize))}
+            if (d.id>1){
+              //console.log(ps[i])
+              //console.log(cScheme)
+              //console.log(cScheme.function(ps[i]))
+              if (cScheme.isLog==0) {
+                cVal=(cScheme.function(ps[i])-cScheme.range[0])/(cScheme.range[1]-cScheme.range[0])
+              }
+              if (cScheme.isLog==1)  {
+                cVal=(Math.log10(Math.abs(cScheme.function(ps[i])))-Math.log10(cScheme.range[0]))/(Math.log10(cScheme.range[1])-Math.log10(cScheme.range[0]))
+              }
+              //console.log(cVal)
+              //console.log(cScheme.cMap(cVal))
+              return cScheme.cMap(cVal)
+            }
             return d.c
         })
       }
@@ -206,6 +202,58 @@
       }
     }
     var timer=d3.interval(evolve,1000/30);
+
+    // Initialize the button
+    var allGroup = ["yellow", "blue", "red", "green", "purple", "black"]
+    var fixButton = d3.select("#controls")
+      .append('button')
+      .text("fix center")
+      .on("click",function(){
+        isFixed=(isFixed+1)% 2;
+      });
+    var restartButton = d3.select("#controls")
+      .append('button')
+      .text("restart")
+      .on("click",function(){
+        nSteps=0;
+        ps=[];
+        lines=[];
+        satXs=[];
+        satYs=[];
+
+        ps=initializeParticle(ps,hostOptions)
+        ps=initializeParticle(ps,satOptions)
+        ps=initializeHalo(ps,nPassive,haloOptions)
+
+        satXs.push(ps[1].x[0])
+        satYs.push(ps[1].x[1])
+
+        circles.remove();
+        circles=joinCircles();
+      });
+    var cScheme=cSchemes[0]
+    var selectedColour;
+    var colourPicker = d3.select("#controls")
+      .append('select');
+    colourPicker // Add a button
+      .selectAll('myOptions') // Next 4 lines add 6 options = 6 colors
+   	  .data(cSchemes)
+      .enter()
+  	  .append('option')
+      .text(function (d) { return d.name; }) // text showed in the menu
+      .attr("value", function (d) { return d.name; }) // corresponding value returned by the button
+    colourPicker
+      .on("change", function(d) {
+        //console.log('here')
+        // recover the option that has been chosen
+        selectedColour = d3.select(this).property("value")
+        thisIndex=0
+        for (var i=0;i<cSchemes.length;i++){
+          if (cSchemes[i].name==selectedColour) {thisIndex=i;}
+        }
+        //console.log(thisIndex)
+        cScheme=cSchemes[thisIndex]
+      });
   </script>
 </body>
 </html>

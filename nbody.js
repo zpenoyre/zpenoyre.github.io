@@ -14,9 +14,8 @@ function gravParticle(){
   this.x=[0,0,0]
   this.v=[0,0,0]
   this.a=[0,0,0]
+  this.Phi=0
   this.flag=0
-  this.c='black'
-  this.r=2
   this.smooth=0.1
 }
 
@@ -42,6 +41,9 @@ function gravity(p1,p2){ // calculating and updating the acceleration of a pair 
   p2.a[0]=p2.a[0]+a2[0]
   p2.a[1]=p2.a[1]+a2[1]
   p2.a[2]=p2.a[2]+a2[2]
+
+  p1.Phi=p1.Phi-Galt*p1.m*p2.m/r;
+  p2.Phi=p2.Phi-Galt*p1.m*p2.m/r;
 }
 
 function acceleration(ps){
@@ -56,7 +58,7 @@ function acceleration(ps){
   }
 }
 
-function leapfrog(dt) {
+function leapfrog(dt,fixed=0) {
   for (var i=0; i< nParticles; i++){
     ps[i].v[0]=ps[i].v[0]+ps[i].a[0]*dt/2;
     ps[i].v[1]=ps[i].v[1]+ps[i].a[1]*dt/2;
@@ -65,6 +67,9 @@ function leapfrog(dt) {
     ps[i].x[0]=ps[i].x[0]+ps[i].v[0]*dt;
     ps[i].x[1]=ps[i].x[1]+ps[i].v[1]*dt;
     ps[i].x[2]=ps[i].x[2]+ps[i].v[2]*dt;
+  }
+  if (fixed==1){ //central particle does not move
+      ps[0].x=[0,0,0]
   }
   acceleration(ps); // finds new acceleration
   for (var i=0; i < nParticles; i++){
@@ -76,6 +81,7 @@ function leapfrog(dt) {
 
 function clearAcc(ps){ // clearing old accelerations at each step
   for (var i = 0; i < ps.length; i++) {
+    ps[i].Phi=0;
     ps[i].a=[0,0,0];
   }
 }
