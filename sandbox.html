@@ -32,12 +32,14 @@
     font-weight: bold;
     color: black;
   }
-  div.header
+  div.setup
   {
     grid-column-start: 3;
     grid-column-end: 4;
     grid-row-start: 1;
     grid-row-end: 2;
+    padding: 10px;
+
   }
   div.controls
   {
@@ -45,9 +47,13 @@
     grid-column-end: 4;
     grid-row-start: 2;
     grid-row-end: 3;
+    padding: 10px;
   }
   button  {
     float: left
+    background-color: #555555;
+    font-size: 12px;
+    padding: 2px;
   }
   .node circle {
     stroke-width: 2px;
@@ -83,7 +89,11 @@
 <body>
   <div class="container">
     <div class='sim' id='sim'></div>
-    <div class='header' id='header'></div>
+    <div class='setup' id='setup'>
+      <button type="button" id="playPause">play/pause</button> <br>
+      Speed <input type="range" name="speedSetting" id=speedSetting min="1" max="10" value="2">
+    </div>
+
     <div class='controls' id='controls'></div>
     <div class='text'>
       <h1> The sandbox </h1>
@@ -124,27 +134,28 @@
 
     var circles=joinCircles();
 
-    var dt=0.001
+    var dt=0.0005;
     var tTotal=0
     var nSteps=0
+    var skipSteps=2;
 
     acceleration(ps);
-    var isFixed=0
+    var isFixed=0;
     function evolve() {
       leapfrog(dt,fixed=isFixed);
       tTotal=tTotal+dt;
       nSteps=nSteps+1;
       for (var i=0; i < nParticles; i++){
 
-        if ((i==1) && (nSteps%10==0)){
+        if ((i==1) && (nSteps%16==0)){
           var sat=ps[i];
           satXs.push(sat.x[0]);
           satYs.push(sat.x[1]);
           var newLine = new lineElement();
-          newLine.x1=satXs[(nSteps/10)-1];
-          newLine.x2=satXs[(nSteps/10)];
-          newLine.y1=satYs[(nSteps/10)-1];
-          newLine.y2=satYs[(nSteps/10)];
+          newLine.x1=satXs[(nSteps/16)-1];
+          newLine.x2=satXs[(nSteps/16)];
+          newLine.y1=satYs[(nSteps/16)-1];
+          newLine.y2=satYs[(nSteps/16)];
           lines.push(newLine);
           svg.selectAll("line").data(lines).join("line")
             .attr("x1", function(d) {return size*(d.x1+boxSize)/(2*boxSize);})
@@ -153,25 +164,20 @@
             .attr("y2", function(d) {return size*(d.y2+boxSize)/(2*boxSize);})
             .style("stroke", "#ccc");
         }
-
-        if (i>1000) {continue;}
+        //console.log(nSteps%skipSteps)
+        if ((i>1000) || (nSteps%skipSteps!=0)) {continue;}
         var thisCircle=d3.select('#particle'+ps[i].id);
         thisCircle
           .attr('cx', function(d) {return size*(d.x[0]+boxSize)/(2*boxSize);})
           .attr('cy',function(d) {return size*(d.x[1]+boxSize)/(2*boxSize);})
           .style("fill", function(d) {
             if (d.id>1){
-              //console.log(ps[i])
-              //console.log(cScheme)
-              //console.log(cScheme.function(ps[i]))
               if (cScheme.isLog==0) {
                 cVal=(cScheme.function(ps[i])-cScheme.range[0])/(cScheme.range[1]-cScheme.range[0])
               }
               if (cScheme.isLog==1)  {
                 cVal=(Math.log10(Math.abs(cScheme.function(ps[i])))-Math.log10(cScheme.range[0]))/(Math.log10(cScheme.range[1])-Math.log10(cScheme.range[0]))
               }
-              //console.log(cVal)
-              //console.log(cScheme.cMap(cVal))
               return cScheme.cMap(cVal)
             }
             return d.c
@@ -179,29 +185,37 @@
       }
 
       t = d3.now();
-      var fps = 1000 / (t - t0);
+      var fps = 1000 / (0.5*((t - t1)+(t1-t0)));
       info.html(fmt(fps) + " fps = " + fmt(fps) + ' frames/sec');
-      t0=t;
+      t0=t1;
+      t1=t;
     }
 
-    var info = d3.select('body').append('div')
+    var info = d3.select('#sim').append('div')
       .style('position', 'absolute')
       .style('top', '0')
       .style('left', '0')
-      .style('padding', '5px')
+      .style('padding', '10px')
       .style('background-color', '#aaa');
-    var start = d3.now(), t0 = 0, sum = 0, cnt = 0;
+    var start = d3.now(), t0 = 0, t1=0, sum = 0, cnt = 0;
     var fmt = d3.format(",d");
+    var startStop=0;
+    var hasStarted=0
+    var timer;
 
-    var startStop=1
-    document.body.onkeyup = function(e){
-      if(e.keyCode == 32){
-          startStop=(startStop+1)%2
-          if (startStop==0) {timer.stop();}
-          if (startStop==1) {timer.restart(evolve,1000/30);}
+    d3.select("#playPause").on("click", function(){
+      startStop=(startStop+1)%2
+      if ((hasStarted==0) && (startStop==1)){
+        hasStarted=1;
+        timer=d3.interval(evolve,1000/60);
       }
-    }
-    var timer=d3.interval(evolve,1000/30);
+      if (startStop==0) {timer.stop();}
+      if (startStop==1) {timer.restart(evolve,1000/60);}
+    } )
+    d3.select("#speedSetting").on("change", function(){
+      skipSteps=Math.round(this.value)
+    })
+    //var timer=d3.interval(evolve,1000/30);
 
     // Initialize the button
     var allGroup = ["yellow", "blue", "red", "green", "purple", "black"]
