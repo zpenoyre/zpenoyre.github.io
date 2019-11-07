@@ -115,11 +115,11 @@
     var satXs=[];
     var satYs=[];
 
-    var nPassive=1000;
+    var nPassive=16;
     var x0=[30,0,0]
-    var v0=[0,180,0]
+    var v0=[0,120,0]
     hostOptions={m: 1e11, smooth:1}
-    satOptions={m: 2e10, x: x0, v: v0, smooth: 0.5}
+    satOptions={m: 5e10, x: x0, v: v0, smooth: 0.5}
     haloOptions={shape: 'sphere',rMin: 2, smooth:0.2, active:0}
     ps=initializeParticle(ps,hostOptions)
     ps=initializeParticle(ps,satOptions)
