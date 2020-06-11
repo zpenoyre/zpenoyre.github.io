@@ -110,17 +110,17 @@
       .attr('height',size);
 
 
-    var boxSize=32; // distance from edge to centre of visible box in kpc (for conversion to pixels)
+    var boxSize=50; // distance from edge to centre of visible box in kpc (for conversion to pixels)
     var ps=[];
     var lines=[];
     var satXs=[];
     var satYs=[];
 
-    var nPassive=128;
+    var nPassive=512;
     var x0=[30,0,0]
-    var v0=[0,120,0]
+    var v0=[0,150,0]
     hostOptions={m: 1e11, smooth:1}
-    satOptions={m: 5e10, x: x0, v: v0, smooth: 0.5}
+    satOptions={m: 3e10, x: x0, v: v0, smooth: 0.5}
     haloOptions={shape: 'sphere',rMin: 2, smooth:0.2, active:0}
     ps=initializeParticle(ps,hostOptions)
     ps=initializeParticle(ps,satOptions)

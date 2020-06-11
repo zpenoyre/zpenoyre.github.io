@@ -43,6 +43,9 @@ function findVirial(p){
   var v = Math.sqrt(p.v[0]**2 + p.v[1]**2 + p.v[2]**2 )
   return Math.abs(p.Phi - 0.5*p.m*(v**2))
 }
+function findz(p){
+  return p.x[2]
+}
 
 var cSchemes = []
 var vScheme= new colourScheme();
@@ -60,6 +63,11 @@ virScheme.range=[3e12,3e13];
 virScheme.isLog=1;
 virScheme.cMap=d3.interpolatePuRd;
 virScheme.function=findVirial;
+var zScheme = new colourScheme();
+zScheme.name='z';
+zScheme.range=[-32,32];
+zScheme.function=findz;
 cSchemes.push(vScheme);
 cSchemes.push(eScheme);
 cSchemes.push(virScheme);
+cSchemes.push(zScheme);
