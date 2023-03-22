@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>pancakes</title>
+  <style>
+  div.container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
+  }
+  div.sim {
+    grid-column-start: 1;
+    grid-column-end: 3;
+    grid-row-start: 1;
+    grid-row-end: 4;
+  }
+  div.link {
+    stroke: #bbb;
+  }
+  div.text
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 3;
+    grid-row-end: 4;
+    padding-left: 5%;
+    padding-right: 1%;
+    align-self: flex-end;
+    text-align: right;
+    font-family: Futura, "Trebuchet MS", Arial, sans-serif;
+    font-weight: bold;
+    color: black;
+  }
+  div.setup
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 2;
+    padding: 10px;
+
+  }
+  div.controls
+  {
+    grid-column-start: 3;
+    grid-column-end: 4;
+    grid-row-start: 2;
+    grid-row-end: 3;
+    padding: 10px;
+  }
+  button  {
+    float: left
+    background-color: #555555;
+    font-size: 12px;
+    padding: 2px;
+  }
+  .node circle {
+    stroke-width: 2px;
+    r: 2px
+  }
+  *
+  {
+    margin:0;
+    padding:0;
+  }
+  h1
+  {
+    margin: 3%;
+    font-size: 32px;
+  }
+  h2
+  {
+    margin: 3%;
+    font-size: 14px;
+  }
+  p
+  {
+    margin: 3%;
+    font-size: 16px;
+  }
+
+  </style>
+  <script src="https://d3js.org/d3.v5.js"></script>
+  <script src="nbody.js"></script>
+  <script src="initialize.js"></script>
+  <script src="drawing.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class='plot' id='plot'></div>
+
+    <div class='text'>
+      <h1> Pancakes </h1>
+      <p> exploring high dimensional data </p>
+    </div>
+  </div>
+  <script type="text/javascript">
+    var simDiv = document.getElementById("sim");
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+    var size = Math.min(width,height);
+    var svg=d3.select("#sim").append("svg");
+    svg.attr('width',size)
+      .attr('height',size);
+    var data = d3.csv('https://tableconvert.com/?output=csv&data=https://gist.githubusercontent.com/curran/a08a1080b88344b0c8a7/raw/d546eaee765268bf2f487608c537c05e22e4b221/iris.csv')
+    console.log(data)
+  </script>
+</body>
+</html>
